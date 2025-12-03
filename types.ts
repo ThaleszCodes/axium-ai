@@ -68,6 +68,23 @@ export interface CoderState {
   logs: ConsoleLog[]; // Captura de console do iframe
 }
 
+export interface ImageGenState {
+  prompt: string;
+  activeImage: GeneratedImage | null;
+  history: GeneratedImage[];
+}
+
+export interface SocialGenState {
+  topic: string;
+  result: any | null;
+}
+
+export interface AudioGenState {
+  text: string;
+  voice: VoiceName;
+  audioUrl: string | null;
+}
+
 export interface VideoIdea {
   title: string;
   script: string;
