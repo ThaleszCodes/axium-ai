@@ -1,0 +1,144 @@
+{
+  "system": {
+    "name": "Axium AI",
+    "description": "Plataforma de criação de IA 'All-in-One' com interface premium minimalista.",
+    "version": "1.2.0",
+    "architecture": "SPA (Single Page Application)",
+    "stack": ["React", "TypeScript", "Tailwind CSS", "Framer Motion", "Google GenAI SDK"],
+    "theme": {
+      "mode": "dark",
+      "palette": {
+        "primary": "zinc-50 (White)",
+        "secondary": "zinc-900 (Black)",
+        "accent": "Metallic Gradients",
+        "effects": ["Backdrop Blur", "Noise Texture", "Ambient Glow"]
+      }
+    }
+  },
+  "authentication": {
+    "stages": [
+      {
+        "id": "landing",
+        "component": "LandingPage",
+        "features": ["Cinematic Intro", "Blob Animation Button"]
+      },
+      {
+        "id": "login",
+        "component": "LoginPage",
+        "features": ["Glassmorphism Form", "ShatterButton Animation"]
+      },
+      {
+        "id": "app",
+        "component": "Dashboard",
+        "features": ["Floating Navigation", "Tool Rendering", "State Persistence"]
+      }
+    ]
+  },
+  "tools_registry": [
+    {
+      "id": "Chat",
+      "label": "Chat Axium",
+      "icon": "Chat",
+      "component": "ChatTool",
+      "model": "gemini-2.5-flash",
+      "capabilities": [
+        "Conversational AI",
+        "Google Search Grounding (Real-time Data)",
+        "Markdown Rendering",
+        "Hero Interface",
+        "Context Memory"
+      ]
+    },
+    {
+      "id": "Coder",
+      "label": "Axium Coder",
+      "icon": "Code",
+      "component": "CoderTool",
+      "model": "gemini-3-pro-preview",
+      "capabilities": [
+        "Full Stack Generation (HTML/CSS/JS)",
+        "Real-time Preview (Iframe)",
+        "Split View IDE",
+        "Version Control History"
+      ]
+    },
+    {
+      "id": "ImageGen",
+      "label": "Gerador de Imagem",
+      "icon": "Image",
+      "component": "ImageTool",
+      "model": "gemini-2.5-flash-image",
+      "capabilities": [
+        "Text-to-Image",
+        "Session Gallery",
+        "Direct Download",
+        "Aspect Ratio 1:1"
+      ]
+    },
+    {
+      "id": "AudioGen",
+      "label": "Texto para Voz",
+      "icon": "Audio",
+      "component": "AudioTool",
+      "model": "gemini-2.5-flash-preview-tts",
+      "capabilities": [
+        "Text-to-Speech",
+        "Multi-voice Selection (Puck, Charon, Kore, Fenrir, Zephyr)",
+        "Audio Playback"
+      ]
+    },
+    {
+      "id": "SocialPostGen",
+      "label": "Social Design",
+      "icon": "Layers",
+      "component": "SocialDesignTool",
+      "model": "gemini-2.5-flash (Logic) + gemini-2.5-flash-image (Art)",
+      "capabilities": [
+        "Social Media Strategy",
+        "Caption & Hashtag Generation",
+        "Automatic Art Direction",
+        "Integrated Image Generation"
+      ]
+    },
+    {
+      "id": "CopyGen",
+      "label": "Gerador de Copy",
+      "icon": "Feather",
+      "component": "SimpleGenTool",
+      "model": "gemini-2.5-flash",
+      "description": "Persuasão estratégica. Crie textos de vendas, anúncios e emails de alta conversão."
+    },
+    {
+      "id": "PromptGen",
+      "label": "Otimizador de Prompt",
+      "icon": "Sparkles",
+      "component": "SimpleGenTool",
+      "model": "gemini-2.5-flash",
+      "description": "Refine sua visão. Otimize instruções simples para obter resultados profissionais."
+    },
+    {
+      "id": "TextImprover",
+      "label": "Melhorar Texto",
+      "icon": "Edit",
+      "component": "SimpleGenTool",
+      "model": "gemini-2.5-flash",
+      "description": "Eleve sua escrita. Aprimore gramática, tom e clareza."
+    },
+    {
+      "id": "DesignGen",
+      "label": "Gerador de UI",
+      "icon": "Layout",
+      "component": "SimpleGenTool",
+      "model": "gemini-2.5-flash",
+      "description": "Arquitetura de interface. Gere estruturas JSON para componentes."
+    },
+    {
+      "id": "VideoStructure",
+      "label": "Estrutura de Vídeo",
+      "icon": "Video",
+      "component": "SimpleGenTool",
+      "model": "gemini-2.5-flash",
+      "description": "Planejamento de conteúdo. Roteiros e metadados estruturados."
+    }
+  ]
+}
