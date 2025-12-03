@@ -10,6 +10,13 @@ const checkApiKey = () => {
   if (!apiKey) throw new Error("Chave de API não encontrada nas variáveis de ambiente.");
 };
 
+// --- Helper: Clean JSON Markdown ---
+// Removes ```json and ``` wrapping to prevent JSON.parse errors
+const cleanJson = (text: string): string => {
+  if (!text) return "{}";
+  return text.replace(/```json/g, '').replace(/```/g, '').trim();
+};
+
 // --- Audio Helper: Convert Raw PCM to WAV ---
 const writeString = (view: DataView, offset: number, string: string) => {
   for (let i = 0; i < string.length; i++) {
@@ -131,7 +138,7 @@ export const generateImage = async (prompt: string): Promise<string> => {
       }
   }
   
-  if (!imageUrl) throw new Error("Nenhuma imagem gerada.");
+  if (!imageUrl) throw new Error("Nenhuma imagem gerada. Tente um prompt diferente.");
   return imageUrl;
 };
 
@@ -171,7 +178,6 @@ export const generateCode = async (prompt: string, currentCode?: {html: string, 
     config: {
       responseMimeType: "application/json",
       systemInstruction: CODER_SYSTEM_INSTRUCTION,
-      // Using a simplified schema definition for robustness with the SDK types
       responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -185,7 +191,9 @@ export const generateCode = async (prompt: string, currentCode?: {html: string, 
   });
 
   try {
-    return JSON.parse(response.text || '{}');
+    const rawText = response.text || '{}';
+    const cleanedText = cleanJson(rawText);
+    return JSON.parse(cleanedText);
   } catch (e) {
     console.error("Falha ao analisar JSON do código", response.text);
     throw new Error("A IA produziu um formato de código inválido.");
@@ -211,7 +219,9 @@ export const generateStructuredData = async (prompt: string, systemInstruction: 
     });
     
     try {
-        return JSON.parse(response.text || '{}');
+        const rawText = response.text || '{}';
+        const cleanedText = cleanJson(rawText);
+        return JSON.parse(cleanedText);
     } catch (e) {
         throw new Error("Falha ao analisar dados estruturados.");
     }
