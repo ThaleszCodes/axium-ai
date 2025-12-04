@@ -436,11 +436,11 @@ const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Password Reset States
+    // Password Reset
     const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [resetEmail, setResetEmail] = useState("");
     const [resetLoading, setResetLoading] = useState(false);
-    const [resetMessage, setResetMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [resetMessage, setResetMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
     const handleSubmit = async () => {
         if(!email || !password) {
@@ -481,9 +481,9 @@ const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
         setResetMessage(null);
         try {
             await Supabase.resetPassword(resetEmail);
-            setResetMessage({ type: 'success', text: "Link de redefinição enviado! Verifique seu e-mail." });
-        } catch (e: any) {
-            setResetMessage({ type: 'error', text: "Erro ao enviar link. Verifique o e-mail." });
+            setResetMessage({ type: 'success', text: "Link de recuperação enviado!" });
+        } catch(e: any) {
+            setResetMessage({ type: 'error', text: e.message || "Erro ao enviar email." });
         } finally {
             setResetLoading(false);
         }
@@ -530,11 +530,10 @@ const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
                     </div>
                 </div>
 
-                {/* Forgot Password Link */}
                 {mode === 'login' && (
                     <div className="flex justify-end mt-2">
                         <button 
-                            onClick={() => setShowForgotPassword(true)}
+                            onClick={() => setShowForgotPassword(true)} 
                             className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 transition-colors"
                         >
                             Esqueceu a senha?
@@ -574,49 +573,43 @@ const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
                 </div>
             </div>
 
-            {/* Password Reset Modal */}
+            {/* Reset Password Modal */}
             <AnimatePresence>
                 {showForgotPassword && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                         <motion.div 
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 w-full max-w-sm shadow-xl relative"
+                             initial={{ opacity: 0, scale: 0.9 }}
+                             animate={{ opacity: 1, scale: 1 }}
+                             exit={{ opacity: 0, scale: 0.9 }}
+                             className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 w-full max-w-sm shadow-xl relative"
                         >
-                            <button 
-                                onClick={() => { setShowForgotPassword(false); setResetMessage(null); setResetEmail(""); }}
-                                className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-                            >
-                                <Icons.X className="w-5 h-5" />
-                            </button>
-                            
-                            <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Redefinir Senha</h3>
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-                                Digite seu e-mail para receber um link de redefinição.
-                            </p>
-
-                            <input 
+                             <button onClick={() => setShowForgotPassword(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
+                                 <Icons.X className="w-5 h-5" />
+                             </button>
+                             <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Redefinir Senha</h3>
+                             <p className="text-sm text-zinc-500 mb-4">Insira seu e-mail para receber um link de redefinição.</p>
+                             
+                             <input 
                                 type="email" 
                                 value={resetEmail}
                                 onChange={(e) => setResetEmail(e.target.value)}
-                                placeholder="Seu e-mail cadastrado"
-                                className="w-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg py-2 px-3 outline-none text-zinc-900 dark:text-zinc-100 mb-4"
-                            />
+                                placeholder="Seu e-mail"
+                                className="w-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 mb-4 text-zinc-900 dark:text-white outline-none"
+                             />
+                             
+                             {resetMessage && (
+                                 <div className={`mb-4 text-xs text-center p-2 rounded ${resetMessage.type === 'success' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                                     {resetMessage.text}
+                                 </div>
+                             )}
 
-                            {resetMessage && (
-                                <div className={`mb-4 p-2 rounded text-xs text-center ${resetMessage.type === 'success' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                                    {resetMessage.text}
-                                </div>
-                            )}
-
-                            <button 
+                             <button 
                                 onClick={handleResetPassword}
                                 disabled={resetLoading}
-                                className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg py-2 font-medium disabled:opacity-50"
-                            >
+                                className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-2.5 rounded-lg font-medium disabled:opacity-50"
+                             >
                                 {resetLoading ? 'Enviando...' : 'Enviar Link'}
-                            </button>
+                             </button>
                         </motion.div>
                     </div>
                 )}
@@ -682,7 +675,6 @@ const ChatTool = ({ setActiveTool, onAuthError, profile, onConsume, onLimitReach
     const textToSend = textOverride || input;
     if (!textToSend.trim()) return;
 
-    // CREDIT CHECK
     if (profile && profile.plan === 'free' && profile.credits <= 0) {
         onLimitReached();
         return;
@@ -739,16 +731,15 @@ const ChatTool = ({ setActiveTool, onAuthError, profile, onConsume, onLimitReach
 
       await Supabase.updateChat(chatId, updatedMessages, title);
       
-      // Consume Credit
       onConsume();
 
     } catch (e: any) {
       console.error(e);
-      if (e.message && (e.message.includes("autenticado") || e.message.includes("JWT"))) {
-          onAuthError();
-          return;
-      }
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: "Desculpe, encontrei um erro de conexão. Tente novamente.", timestamp: Date.now() }]);
+      let errorMsg = e.message || "Desculpe, encontrei um erro de conexão.";
+      
+      if (errorMsg.includes('autenticado')) { onAuthError(); return; }
+      
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: errorMsg, timestamp: Date.now() }]);
     } finally {
       setLoading(false);
     }
@@ -975,14 +966,12 @@ const ChatTool = ({ setActiveTool, onAuthError, profile, onConsume, onLimitReach
 };
 
 const ImageTool = ({ profile, onConsume, onLimitReached, savedState, saveState }: ToolProps) => {
-  // Use saved state or defaults
   const [prompt, setPrompt] = useState(savedState?.prompt || "");
   const [loading, setLoading] = useState(false);
   const [activeImage, setActiveImage] = useState<GeneratedImage | null>(savedState?.activeImage || null);
   const [history, setHistory] = useState<GeneratedImage[]>(savedState?.history || []);
 
   useEffect(() => {
-    // Only load from DB if no history in state
     if (history.length === 0) {
         const load = async () => {
             const imgs = await Supabase.getImages();
@@ -993,7 +982,6 @@ const ImageTool = ({ profile, onConsume, onLimitReached, savedState, saveState }
     }
   }, []);
 
-  // Update parent state on changes
   useEffect(() => {
     saveState?.({ prompt, activeImage, history });
   }, [prompt, activeImage, history, saveState]);
@@ -1019,7 +1007,7 @@ const ImageTool = ({ profile, onConsume, onLimitReached, savedState, saveState }
       
       onConsume?.();
     } catch (e: any) {
-      alert("Falha ao gerar imagem: " + (e.message || "Erro desconhecido"));
+      alert("Falha: " + (e.message || "Erro desconhecido"));
     } finally {
       setLoading(false);
     }
@@ -1135,8 +1123,8 @@ const AudioTool = ({ profile, onConsume, onLimitReached, savedState, saveState }
       const url = await Gemini.generateAudio(text, voice);
       setAudioUrl(url);
       onConsume?.();
-    } catch (e) {
-      alert("Falha ao gerar áudio");
+    } catch (e: any) {
+      alert("Falha ao gerar áudio: " + (e.message || "Erro"));
     } finally {
       setLoading(false);
     }
@@ -1236,12 +1224,10 @@ const CoderTool = ({ profile, onConsume, onLimitReached, savedState, saveState }
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
 
   useEffect(() => {
-    // Save state on changes
     saveState?.(state);
   }, [state, saveState]);
 
   useEffect(() => {
-    // Only fetch history if not already populated (to avoid overwrite)
     if (state.history.length === 0) {
         const load = async () => {
             const sites = await Supabase.getSites();
@@ -1278,7 +1264,6 @@ const CoderTool = ({ profile, onConsume, onLimitReached, savedState, saveState }
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>${state.css}</style>
         <script>
-            // Intercept Console Logs
             (function(){
                 const oldLog = console.log;
                 const oldError = console.error;
@@ -1338,14 +1323,15 @@ const CoderTool = ({ profile, onConsume, onLimitReached, savedState, saveState }
         css: codeResult.css,
         js: codeResult.js,
         chatHistory: [...prev.chatHistory, { id: Date.now().toString(), role: 'model', content: "Código atualizado com sucesso.", timestamp: Date.now() }],
-        logs: [] // Clear logs on new run
+        logs: [] 
       }));
       setIframeKey(k => k + 1);
-      
       onConsume?.();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setState(prev => ({ ...prev, chatHistory: [...prev.chatHistory, { id: Date.now().toString(), role: 'model', content: "Falha ao atualizar o código. Tente simplificar o pedido.", timestamp: Date.now() }] }));
+      let errorMsg = e.message || "Falha ao atualizar o código.";
+      
+      setState(prev => ({ ...prev, chatHistory: [...prev.chatHistory, { id: Date.now().toString(), role: 'model', content: errorMsg, timestamp: Date.now() }] }));
     } finally {
       setLoading(false);
     }
@@ -1365,7 +1351,6 @@ const CoderTool = ({ profile, onConsume, onLimitReached, savedState, saveState }
   };
 
   const saveVersion = async () => {
-      // Save to Supabase
       try {
         await Supabase.saveSite(state.html, state.css, state.js, "Versão " + new Date().toLocaleString());
         const sites = await Supabase.getSites();
@@ -1748,8 +1733,8 @@ const SimpleGenTool = ({ type, profile, onConsume, onLimitReached }: { type: Too
          const text = await Gemini.generateText(input, config.instruction);
          setOutput(text || "Sem resposta");
          onConsume?.();
-     } catch(e) {
-         setOutput("Erro ao gerar conteúdo.");
+     } catch(e: any) {
+         setOutput("Erro ao gerar conteúdo: " + e.message);
      } finally {
          setLoading(false);
      }
@@ -1809,7 +1794,6 @@ const App = () => {
   };
 
   useEffect(() => {
-     // Check session
      Supabase.getSession().then(s => {
          if (s) {
              setSession(s);
@@ -1818,7 +1802,6 @@ const App = () => {
          }
      });
      
-     // Theme init
      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
          setTheme('light');
      }
@@ -1839,7 +1822,6 @@ const App = () => {
       setSession(null);
       setUserProfile(null);
       setAuthStage('landing');
-      // Clear states
       setImageState(undefined);
       setCoderState(undefined);
       setSocialState(undefined);
@@ -1849,7 +1831,6 @@ const App = () => {
   const handleConsumeCredit = async () => {
       try {
           await Supabase.consumeCredit();
-          // Update local state immediately for responsiveness
           if (userProfile && userProfile.plan === 'free') {
               setUserProfile({ ...userProfile, credits: Math.max(0, userProfile.credits - 1) });
           }
@@ -1882,7 +1863,6 @@ const App = () => {
               return <CoderTool {...commonProps} savedState={coderState} saveState={setCoderState} />;
           case ToolType.SocialPostGen: 
               return <SocialDesignTool {...commonProps} savedState={socialState} saveState={setSocialState} />;
-          // Generic Tools (Simplest form, state not persisted deeply as they are usually one-off)
           case ToolType.CopyGen:
           case ToolType.PromptGen:
           case ToolType.TextImprover:
@@ -1898,7 +1878,6 @@ const App = () => {
   if (authStage === 'landing') return <LandingPage onStart={() => setAuthStage('login')} />;
   if (authStage === 'login') return <LoginPage onLogin={() => { setAuthStage('app'); Supabase.getSession().then((s) => { setSession(s); fetchProfile(); }); }} />;
 
-  // Loading state while session is being verified
   if (authStage === 'app' && !session) return (
       <div className="h-screen w-full flex items-center justify-center bg-zinc-950">
           <LoadingSpinner />
@@ -1934,7 +1913,7 @@ const App = () => {
        {/* Floating Bottom Navigation */}
        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 max-w-[95vw]">
         <div className="flex items-center gap-2 px-3 py-2.5 bg-white/80 dark:bg-zinc-950/70 backdrop-blur-xl border border-white/20 dark:border-zinc-800 rounded-full shadow-2xl ring-1 ring-white/50 dark:ring-zinc-700/50 overflow-x-auto no-scrollbar">
-            {/* Sign Out Button (Left) */}
+            
             <button 
                  onClick={handleSignOut} 
                  className="flex items-center justify-center p-3 rounded-full transition-all duration-300 bg-transparent text-zinc-500 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50 hover:text-red-500 shrink-0"
@@ -1961,10 +1940,8 @@ const App = () => {
             <NavButton active={activeTool === ToolType.TextImprover} onClick={() => setActiveTool(ToolType.TextImprover)} icon={Icons.Edit} label="Editor" />
             <NavButton active={activeTool === ToolType.DesignGen} onClick={() => setActiveTool(ToolType.DesignGen)} icon={Icons.Layout} label="UI Gen" />
             
-            {/* Divider */}
             <div className="w-px h-5 bg-zinc-300 dark:bg-zinc-800 mx-2 shrink-0"></div>
             
-            {/* Credit Counter */}
             <div 
                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase border transition-colors cursor-pointer ${
                    userProfile?.plan === 'pro' 
@@ -1981,6 +1958,16 @@ const App = () => {
                     <>💎 {userProfile?.credits ?? '...'} <span className="hidden sm:inline">Créditos</span></>
                 )}
             </div>
+
+            <a 
+                href="mailto:axiumstudiovip@gmail.com"
+                className="flex items-center justify-center p-3 rounded-full transition-all duration-300 bg-transparent text-zinc-500 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200 shrink-0"
+                title="Suporte"
+            >
+                <Icons.Mail className="w-5 h-5" />
+            </a>
+
+            <div className="w-px h-5 bg-zinc-300 dark:bg-zinc-800 mx-2 shrink-0"></div>
 
             <button 
                 onClick={toggleTheme} 
