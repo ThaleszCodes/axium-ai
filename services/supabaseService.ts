@@ -19,7 +19,6 @@ export const signIn = async (email: string, password: string) => {
 };
 
 export const signUp = async (email: string, password: string) => {
-    // 1. Tenta criar o usuário
     const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -27,29 +26,21 @@ export const signUp = async (email: string, password: string) => {
 
     if (error) throw error;
     
-    // 2. Se a sessão já veio (ideal), retorna ela.
-    if (data.session) {
-        return data.session;
-    }
+    if (data.session) return data.session;
 
-    // 3. FALLBACK: Se "Confirm Email" estiver desligado, o usuário foi criado mas o signUp 
-    // às vezes não faz o login automático. Vamos forçar o login agora.
+    // Force login fallback
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password
     });
 
-    if (signInError) {
-        // Se falhar aqui, é porque realmente algo bloqueou (ex: email já existe ou erro de rede)
-        throw signInError;
-    }
-
+    if (signInError) throw signInError;
     return signInData.session;
 };
 
 export const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin,
+        redirectTo: window.location.origin, // Redireciona para a home após clicar no email
     });
     if (error) throw error;
 };
@@ -69,7 +60,6 @@ export const getUserProfile = async (): Promise<UserProfile | null> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
-    // Tenta buscar o perfil
     const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -77,8 +67,6 @@ export const getUserProfile = async (): Promise<UserProfile | null> => {
         .single();
 
     if (error) {
-        // Se não existir (edge case), cria um perfil padrão free com 10 créditos
-        // Isso é redundante se o Trigger SQL estiver funcionando, mas é uma segurança extra.
         if (error.code === 'PGRST116') {
              const { data: newProfile, error: createError } = await supabase
                 .from('profiles')
@@ -87,7 +75,6 @@ export const getUserProfile = async (): Promise<UserProfile | null> => {
                 .single();
              if (!createError) return newProfile as UserProfile;
         }
-        console.error("Erro ao buscar perfil:", error);
         return null;
     }
 
@@ -98,7 +85,6 @@ export const consumeCredit = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Usuário não logado");
 
-    // Chama a função SQL segura (RPC) para descontar crédito
     const { error } = await supabase.rpc('consume_credit', { user_uuid: user.id });
     
     if (error) throw error;
