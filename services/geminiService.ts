@@ -7,14 +7,46 @@ const ai = new GoogleGenAI({ apiKey });
 
 // Helper to validate API Key
 const checkApiKey = () => {
-  if (!apiKey) throw new Error("Chave de API não encontrada nas variáveis de ambiente.");
+  if (!apiKey) throw new Error("Chave de API não encontrada. Verifique suas variáveis de ambiente.");
+};
+
+// --- Helper: Format API Errors ---
+const formatError = (e: any): Error => {
+    let msg = e.message || JSON.stringify(e);
+    
+    // Detect 429 Quota Error explicitly
+    if (msg.includes('429') || (e.status === 429) || (e.error?.code === 429)) {
+        return new Error("⚠️ Cota Gratuita Excedida (Erro 429). O plano gratuito do Gemini atingiu o limite.");
+    }
+
+    if (msg.includes('SAFETY')) return new Error("Conteúdo bloqueado pelos filtros de segurança da IA.");
+    
+    return new Error(msg);
 };
 
 // --- Helper: Clean JSON Markdown ---
-// Removes ```json and ``` wrapping to prevent JSON.parse errors
 const cleanJson = (text: string): string => {
   if (!text) return "{}";
-  return text.replace(/```json/g, '').replace(/```/g, '').trim();
+  let cleaned = text.trim();
+  cleaned = cleaned.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```$/, '');
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1) {
+      cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  }
+  return cleaned;
+};
+
+// --- Helper: URL to Base64 (For Pollinations) ---
+const imageUrlToBase64 = async (url: string): Promise<string> => {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 };
 
 // --- Audio Helper: Convert Raw PCM to WAV ---
@@ -30,40 +62,25 @@ const pcmToWav = (base64: string, sampleRate: number = 24000) => {
   const buffer = new ArrayBuffer(44 + len);
   const view = new DataView(buffer);
 
-  // RIFF identifier
   writeString(view, 0, 'RIFF');
-  // file length
   view.setUint32(4, 36 + len, true);
-  // RIFF type
   writeString(view, 8, 'WAVE');
-  // format chunk identifier
   writeString(view, 12, 'fmt ');
-  // format chunk length
   view.setUint32(16, 16, true);
-  // sample format (raw)
   view.setUint16(20, 1, true);
-  // channel count (1)
   view.setUint16(22, 1, true);
-  // sample rate
   view.setUint32(24, sampleRate, true);
-  // byte rate (sample rate * block align)
   view.setUint32(28, sampleRate * 2, true);
-  // block align (channel count * bytes per sample)
   view.setUint16(32, 2, true);
-  // bits per sample
   view.setUint16(34, 16, true);
-  // data chunk identifier
   writeString(view, 36, 'data');
-  // data chunk length
   view.setUint32(40, len, true);
 
-  // write the PCM samples
   const dataView = new Uint8Array(buffer, 44);
   for (let i = 0; i < len; i++) {
     dataView[i] = binaryString.charCodeAt(i);
   }
 
-  // Convert back to base64 to use in data URI
   let binary = '';
   const bytes = new Uint8Array(buffer);
   const lenBytes = bytes.byteLength;
@@ -73,95 +90,97 @@ const pcmToWav = (base64: string, sampleRate: number = 24000) => {
   return 'data:audio/wav;base64,' + btoa(binary);
 };
 
+// --- Generators ---
+
 export const generateTextChat = async (history: {role: string, parts: {text: string}[]}[], message: string): Promise<{ text: string; sources?: GroundingSource[] }> => {
   checkApiKey();
   const chat = ai.chats.create({
     model: 'gemini-2.5-flash',
     history: history,
     config: {
-      systemInstruction: 'Você é a Axium AI, uma assistente de IA sofisticada, prestativa e minimalista. Responda sempre em Português do Brasil de forma clara e profissional. Se você usar a Pesquisa Google, certifique-se de usar informações recentes.',
-      tools: [{ googleSearch: {} }] // Enable Google Search
+      systemInstruction: 'Você é a Axium AI, uma assistente de IA sofisticada. Responda sempre em Português do Brasil.',
+      tools: [{ googleSearch: {} }]
     }
   });
   
-  const response = await chat.sendMessage({ message });
-  
-  // Extract web sources from grounding metadata
-  let sources: GroundingSource[] = [];
-  if (response.candidates && response.candidates[0].groundingMetadata?.groundingChunks) {
-      sources = response.candidates[0].groundingMetadata.groundingChunks
-        .map((chunk: any) => chunk.web)
-        .filter((web: any) => web)
-        .map((web: any) => ({
-            title: web.title || "Fonte da Web",
-            uri: web.uri
-        }));
-  }
+  try {
+      const response = await chat.sendMessage({ message });
+      
+      let sources: GroundingSource[] = [];
+      if (response.candidates && response.candidates[0].groundingMetadata?.groundingChunks) {
+          sources = response.candidates[0].groundingMetadata.groundingChunks
+            .map((chunk: any) => chunk.web)
+            .filter((web: any) => web)
+            .map((web: any) => ({
+                title: web.title || "Fonte da Web",
+                uri: web.uri
+            }));
+      }
 
-  return { 
-      text: response.text || "Sem resposta.", 
-      sources 
-  };
+      return { 
+          text: response.text || "Sem resposta.", 
+          sources 
+      };
+  } catch (e: any) {
+      throw formatError(e);
+  }
 };
 
 export const generateChatTitle = async (message: string): Promise<string> => {
     checkApiKey();
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: `Gere um título muito curto (máximo 4 palavras) que resuma esta mensagem: "${message}". Responda apenas com o título.`,
-    });
-    return response.text?.trim() || "Novo Chat";
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `Gere um título de 3 palavras para: "${message}"`,
+        });
+        return response.text?.trim() || "Novo Chat";
+    } catch {
+        return "Novo Chat";
+    }
 }
 
+// HYBRID STRATEGY: Use Pollinations.ai for free, unlimited images
 export const generateImage = async (prompt: string): Promise<string> => {
-  checkApiKey();
-  // Using gemini-2.5-flash-image for standard generation
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: {
-      parts: [{ text: prompt }]
-    },
-    config: {
-       // Using 1:1 aspect ratio by default
-      imageConfig: { aspectRatio: "1:1" }
-    }
-  });
+  // Pollinations does not need an API key
+  try {
+    const encodedPrompt = encodeURIComponent(prompt);
+    // Add random seed to ensure uniqueness for same prompts
+    const randomSeed = Math.floor(Math.random() * 1000000);
+    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${randomSeed}&nologo=true&model=flux`;
+    
+    // Fetch and convert to base64 so we can save consistency in the database
+    const base64Image = await imageUrlToBase64(url);
+    return base64Image;
 
-  // Extract base64 image
-  let imageUrl = '';
-  if (response.candidates && response.candidates[0].content.parts) {
-      for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData) {
-              imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-              break;
-          }
-      }
+  } catch (e: any) {
+    console.error("Image Gen Error:", e);
+    throw new Error("Falha ao gerar imagem com o provedor híbrido.");
   }
-  
-  if (!imageUrl) throw new Error("Nenhuma imagem gerada. Tente um prompt diferente.");
-  return imageUrl;
 };
 
 export const generateAudio = async (text: string, voice: VoiceName): Promise<string> => {
   checkApiKey();
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-preview-tts',
-    contents: [{ parts: [{ text }] }],
-    config: {
-      responseModalities: [Modality.AUDIO],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: { voiceName: voice },
+  try {
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-preview-tts',
+        contents: [{ parts: [{ text }] }],
+        config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+            voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: voice },
+            },
         },
-      },
-    },
-  });
+        },
+    });
 
-  const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!base64Audio) throw new Error("Nenhum áudio gerado.");
-  
-  // Convert Raw PCM to WAV (24kHz is standard for this model)
-  return pcmToWav(base64Audio, 24000);
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!base64Audio) throw new Error("Nenhum áudio gerado.");
+    
+    return pcmToWav(base64Audio, 24000);
+  } catch (e: any) {
+      throw formatError(e);
+  }
 };
 
 export const generateCode = async (prompt: string, currentCode?: {html: string, css: string, js: string}) => {
@@ -172,69 +191,74 @@ export const generateCode = async (prompt: string, currentCode?: {html: string, 
     fullPrompt = `HTML Atual: ${currentCode.html}\nCSS Atual: ${currentCode.css}\nJS Atual: ${currentCode.js}\n\nSolicitação: ${prompt}`;
   }
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview', // Stronger model for code
-    contents: fullPrompt,
-    config: {
-      responseMimeType: "application/json",
-      systemInstruction: CODER_SYSTEM_INSTRUCTION,
-      responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-              html: { type: Type.STRING },
-              css: { type: Type.STRING },
-              js: { type: Type.STRING }
-          },
-          required: ["html", "css", "js"]
-      }
-    }
-  });
+  // HYBRID STRATEGY: Use Flash exclusively for stability and quota management
+  const generateWithModel = async (modelName: string) => {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: fullPrompt,
+        config: {
+          responseMimeType: "application/json",
+          systemInstruction: CODER_SYSTEM_INSTRUCTION,
+          responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                  html: { type: Type.STRING },
+                  css: { type: Type.STRING },
+                  js: { type: Type.STRING }
+              },
+              required: ["html", "css", "js"]
+          }
+        }
+      });
+      return response;
+  };
 
   try {
-    const rawText = response.text || '{}';
-    const cleanedText = cleanJson(rawText);
+    // Using flash ensures speed and higher free tier limits
+    const response = await generateWithModel('gemini-2.5-flash');
+    const cleanedText = cleanJson(response.text || '{}');
     return JSON.parse(cleanedText);
-  } catch (e) {
-    console.error("Falha ao analisar JSON do código", response.text);
-    throw new Error("A IA produziu um formato de código inválido.");
+
+  } catch (e: any) {
+    console.error("Coder Final Error:", e);
+    throw formatError(e);
   }
 };
 
-// Generic JSON generators (Structure, Prompt Gen, etc.)
 export const generateStructuredData = async (prompt: string, systemInstruction: string, schema?: any) => {
     checkApiKey();
     const config: any = {
         systemInstruction: systemInstruction + " Responda em Português do Brasil.",
         responseMimeType: "application/json"
     };
-    
-    if (schema) {
-        config.responseSchema = schema;
-    }
+    if (schema) config.responseSchema = schema;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config
-    });
-    
     try {
-        const rawText = response.text || '{}';
-        const cleanedText = cleanJson(rawText);
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config
+        });
+        
+        const cleanedText = cleanJson(response.text || '{}');
         return JSON.parse(cleanedText);
     } catch (e) {
-        throw new Error("Falha ao analisar dados estruturados.");
+        throw formatError(e);
     }
 };
 
 export const generateText = async (prompt: string, instruction: string = "") => {
     checkApiKey();
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: { systemInstruction: instruction + " Responda em Português do Brasil." }
-    });
-    return response.text;
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { systemInstruction: instruction }
+        });
+        return response.text;
+    } catch (e) {
+        throw formatError(e);
+    }
 }
 
 export const generateSocialPost = async (topic: string) => {
@@ -242,20 +266,14 @@ export const generateSocialPost = async (topic: string) => {
     const schema = {
         type: Type.OBJECT,
         properties: {
-            caption: { type: Type.STRING, description: "A legenda do post com emojis e formatação." },
-            hashtags: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Lista de hashtags relevantes." },
-            imagePrompt: { type: Type.STRING, description: "Um prompt detalhado em INGLÊS para gerar uma imagem de alta qualidade que combine com o post." },
-            artDirection: { type: Type.STRING, description: "Explicação breve da direção de arte em português." }
+            caption: { type: Type.STRING },
+            hashtags: { type: Type.ARRAY, items: { type: Type.STRING } },
+            imagePrompt: { type: Type.STRING },
+            artDirection: { type: Type.STRING }
         },
         required: ["caption", "hashtags", "imagePrompt", "artDirection"]
     };
 
-    const prompt = `Atue como um estrategista de mídia social e diretor de arte premiado.
-    Crie um post completo para redes sociais (Instagram/LinkedIn) sobre: "${topic}".
-    1. Crie uma legenda envolvente, persuasiva e formatada.
-    2. Selecione hashtags estratégicas.
-    3. Crie um PROMPT DE IMAGEM detalhado e artístico (Photorealistic, 3D Render, Minimalist, etc) para a IA gerar a arte visual deste post.
-    Responda estritamente no formato JSON.`;
-
-    return generateStructuredData(prompt, "Você é um especialista em Social Media e Design Gráfico.", schema);
+    const prompt = `Post social sobre: "${topic}". JSON com caption, hashtags, imagePrompt (ingles) e artDirection.`;
+    return generateStructuredData(prompt, "Especialista em Social Media.", schema);
 }
